@@ -1,0 +1,5 @@
+{
+  "name": "PowerBill Manager",
+  "description": "Manage electricity bills across multiple properties, track tenants, and share bill details via WhatsApp PDF.",
+  "requestFramePermissions": []
+}

@@ -1,173 +1,119 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { AppState, Profile, ProfileType, UkscItem, TenantDetails } from '../types';
+import { Profile, AppData, PropertyType, UkscItem, Tenant } from '../types';
 
-const AppContext = createContext<AppState | undefined>(undefined);
+interface ContextType {
+  data: AppData;
+  setApiKey: (key: string) => void;
+  addProfile: (name: string, type: PropertyType) => void;
+  deleteProfile: (id: string) => void;
+  addUkscBulk: (profileId: string, numbers: string[]) => void;
+  updateUksc: (profileId: string, ukscId: string, updates: Partial<UkscItem>) => void;
+  removeUksc: (profileId: string, ukscId: string) => void;
+  exportData: () => void;
+  importData: (file: File) => Promise<void>;
+}
 
-const STORAGE_KEY_PROFILES = 'powerbill_manager_data_v1';
-const STORAGE_KEY_API = 'powerbill_manager_api_key';
+const AppContext = createContext<ContextType | undefined>(undefined);
+
+const STORAGE_KEY = 'powerbill_manager_v2';
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Load Profiles
-  const [profiles, setProfiles] = useState<Profile[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_PROFILES);
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error("Failed to load profiles", e);
-      return [];
-    }
+  const [data, setData] = useState<AppData>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : { profiles: [], apiKey: '' };
   });
 
-  // Load API Key
-  const [apiKey, setApiKeyState] = useState<string>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY_API) || '';
-    } catch (e) {
-      return '';
-    }
-  });
-
-  // Persist Profiles
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(profiles));
-    } catch (e) {
-      console.error("Failed to save profiles", e);
-    }
-  }, [profiles]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, [data]);
 
-  // Persist API Key
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_API, apiKey);
-    } catch (e) {
-      console.error("Failed to save API key", e);
-    }
-  }, [apiKey]);
+  const setApiKey = (apiKey: string) => setData(prev => ({ ...prev, apiKey }));
 
-  const setApiKey = (key: string) => {
-    setApiKeyState(key);
-  };
-
-  const addProfile = (name: string, type: ProfileType) => {
+  const addProfile = (name: string, type: PropertyType) => {
     const newProfile: Profile = {
       id: crypto.randomUUID(),
       name,
       type,
-      items: [],
+      items: []
     };
-    setProfiles((prev) => [...prev, newProfile]);
+    setData(prev => ({ ...prev, profiles: [...prev.profiles, newProfile] }));
   };
 
   const deleteProfile = (id: string) => {
-    setProfiles((prev) => prev.filter((p) => p.id !== id));
+    setData(prev => ({ ...prev, profiles: prev.profiles.filter(p => p.id !== id) }));
   };
 
-  const addUkscToProfile = (profileId: string, ukscNumbers: string[]) => {
-    setProfiles((prev) =>
-      prev.map((p) => {
+  const addUkscBulk = (profileId: string, numbers: string[]) => {
+    setData(prev => ({
+      ...prev,
+      profiles: prev.profiles.map(p => {
         if (p.id !== profileId) return p;
-        const newItems: UkscItem[] = ukscNumbers.map((num) => ({
+        const newItems: UkscItem[] = numbers.map(num => ({
           id: crypto.randomUUID(),
           ukscNumber: num.trim(),
-          label: `USKC ${num.trim()}`,
-          tenant: {
-            name: '',
-            flatOrPlotNo: '',
-            phone: '',
-          },
+          label: `Meter ${num.trim().slice(-4)}`,
+          tenant: { name: '', address: '', phone: '' }
         }));
         return { ...p, items: [...p.items, ...newItems] };
       })
-    );
+    }));
   };
 
   const updateUksc = (profileId: string, ukscId: string, updates: Partial<UkscItem>) => {
-    setProfiles((prev) =>
-      prev.map((p) => {
+    setData(prev => ({
+      ...prev,
+      profiles: prev.profiles.map(p => {
         if (p.id !== profileId) return p;
         return {
           ...p,
-          items: p.items.map((item) => (item.id === ukscId ? { ...item, ...updates } : item)),
+          items: p.items.map(item => item.id === ukscId ? { ...item, ...updates } : item)
         };
       })
-    );
+    }));
   };
 
   const removeUksc = (profileId: string, ukscId: string) => {
-     setProfiles((prev) =>
-      prev.map((p) => {
+    setData(prev => ({
+      ...prev,
+      profiles: prev.profiles.map(p => {
         if (p.id !== profileId) return p;
-        return {
-          ...p,
-          items: p.items.filter((item) => item.id !== ukscId),
-        };
+        return { ...p, items: p.items.filter(item => item.id !== ukscId) };
       })
-    );
-  }
-
-  const updateTenantDetails = (profileId: string, ukscId: string, details: TenantDetails) => {
-    updateUksc(profileId, ukscId, { tenant: details });
+    }));
   };
 
   const exportData = () => {
-    const data = {
-      version: 1,
-      timestamp: new Date().toISOString(),
-      profiles,
-      apiKey,
-    };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `PowerBill_Backup_${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
+    a.download = `PowerBill_Backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
-    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  const importData = async (file: File): Promise<void> => {
+  const importData = (file: File): Promise<void> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const content = e.target?.result as string;
-          const data = JSON.parse(content);
-          
-          if (data.profiles && Array.isArray(data.profiles)) {
-            setProfiles(data.profiles);
+          const imported = JSON.parse(e.target?.result as string);
+          if (imported.profiles) {
+            setData(imported);
+            resolve();
+          } else {
+            reject(new Error("Invalid format"));
           }
-          if (data.apiKey !== undefined) {
-             setApiKeyState(data.apiKey || '');
-          }
-          resolve();
-        } catch (error) {
-          reject(new Error("Invalid JSON file"));
+        } catch (err) {
+          reject(err);
         }
       };
-      reader.onerror = () => reject(new Error("Failed to read file"));
       reader.readAsText(file);
     });
   };
 
   return (
-    <AppContext.Provider
-      value={{
-        profiles,
-        apiKey,
-        addProfile,
-        deleteProfile,
-        addUkscToProfile,
-        updateUksc,
-        removeUksc,
-        updateTenantDetails,
-        setApiKey,
-        exportData,
-        importData,
-      }}
-    >
+    <AppContext.Provider value={{ data, setApiKey, addProfile, deleteProfile, addUkscBulk, updateUksc, removeUksc, exportData, importData }}>
       {children}
     </AppContext.Provider>
   );
@@ -175,8 +121,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 export const useAppStore = () => {
   const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useAppStore must be used within an AppProvider');
-  }
+  if (!context) throw new Error("useAppStore must be used within AppProvider");
   return context;
 };

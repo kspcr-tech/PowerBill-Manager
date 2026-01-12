@@ -1,278 +1,235 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useAppStore } from '../store/context';
-import { TenantDetails, BillDetails } from '../types';
-import { fetchBillDetails } from '../services/billService';
+import { fetchBillFromSource } from '../services/billService';
 import { generateBillPDF } from '../services/pdfService';
-import { ChevronLeft, User, MapPin, Phone, RefreshCw, Download, Share2, Save, FileText } from 'lucide-react';
+import { User, MapPin, Phone, RefreshCw, Download, Share2, Save, ExternalLink, IndianRupee, Zap } from 'lucide-react';
+import { Bill } from '../types';
 
-const UkscDetail: React.FC = () => {
+export const UkscDetail: React.FC = () => {
   const { profileId, ukscId } = useParams<{ profileId: string; ukscId: string }>();
-  const navigate = useNavigate();
-  const { profiles, updateTenantDetails } = useAppStore();
+  const { data, updateUksc } = useAppStore();
+  
+  const profile = data.profiles.find(p => p.id === profileId);
+  const item = profile?.items.find(i => i.id === ukscId);
 
-  const profile = profiles.find((p) => p.id === profileId);
-  const ukscItem = profile?.items.find((i) => i.id === ukscId);
-
-  const [tenantForm, setTenantForm] = useState<TenantDetails>({
-    name: '',
-    flatOrPlotNo: '',
-    phone: '',
-  });
-
-  const [bill, setBill] = useState<BillDetails | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isEditingTenant, setIsEditingTenant] = useState(false);
+  const [bill, setBill] = useState<Bill | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [tenantForm, setTenantForm] = useState(item?.tenant || { name: '', address: '', phone: '' });
 
   useEffect(() => {
-    if (ukscItem) {
-      setTenantForm(ukscItem.tenant);
-      loadBill(ukscItem.ukscNumber);
-    }
-  }, [ukscItem]);
+    if (item) setTenantForm(item.tenant);
+  }, [item]);
 
-  const loadBill = async (ukscNo: string) => {
+  const handleFetch = async () => {
+    if (!item) return;
     setLoading(true);
-    setError('');
     try {
-      const data = await fetchBillDetails(ukscNo);
-      setBill(data);
-    } catch (err) {
-      setError('Failed to fetch bill details. Please try again.');
+      const b = await fetchBillFromSource(item.ukscNumber);
+      setBill(b);
+    } catch (e) {
+      alert("Failed to fetch bill.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveTenant = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (profileId && ukscId) {
-      updateTenantDetails(profileId, ukscId, tenantForm);
-      setIsEditingTenant(false);
-    }
+  const handleSaveTenant = () => {
+    if (!profileId || !ukscId) return;
+    updateUksc(profileId, ukscId, { tenant: tenantForm });
+    setIsEditing(false);
   };
 
-  const handleWhatsAppShare = () => {
-    if (!bill || !ukscItem) return;
-    
-    // Format the message
-    const message = `*Electricity Bill Alert*\n\nHello ${tenantForm.name || 'Tenant'},\nHere is the electricity bill details for UKSC: ${ukscItem.ukscNumber}.\n\n*Amount: ₹${bill.amount}*\nDue Date: ${bill.dueDate}\nUnits: ${bill.unitsConsumed}\n\nPlease pay before the due date to avoid penalties.\n\n_Generated via PowerBill Manager_`;
-    
-    const encodedMessage = encodeURIComponent(message);
-    const phone = tenantForm.phone.replace(/\D/g, ''); // Remove non-digits
-    
-    // Use wa.me link. If phone is present, target specific user, else generic share
-    const url = phone.length >= 10 
-      ? `https://wa.me/91${phone.slice(-10)}?text=${encodedMessage}` 
-      : `https://wa.me/?text=${encodedMessage}`;
-      
+  const shareToWhatsApp = () => {
+    if (!bill || !item) return;
+    const msg = `*Electricity Bill Notification*\n\nHello ${tenantForm.name || 'Tenant'},\n\nYour electricity bill for UKSC *${item.ukscNumber}* is ready.\n\n*Bill Summary:*\nAmount: ₹${bill.amount}\nDue Date: ${bill.dueDate}\nStatus: ${bill.status}\n\nPlease pay at your earliest convenience.\n\n_Generated via PowerBill Pro_`;
+    const phone = tenantForm.phone.replace(/\D/g, '');
+    const url = phone.length >= 10 ? `https://wa.me/91${phone.slice(-10)}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   };
 
-  const handleDownloadPDF = () => {
-    if (ukscItem && bill) {
-      generateBillPDF(ukscItem, bill);
-    }
-  };
-
-  if (!profile || !ukscItem) {
-    return <div>Item not found</div>;
-  }
+  if (!item) return <div className="p-20 text-center">Not found.</div>;
 
   return (
-    <div className="max-w-4xl mx-auto pb-10">
-      {/* Header */}
-      <button 
-        onClick={() => navigate(`/profile/${profileId}`)}
-        className="flex items-center text-gray-500 hover:text-blue-600 mb-4 transition-colors"
-      >
-        <ChevronLeft className="h-5 w-5 mr-1" /> Back to {profile.name}
-      </button>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-top-4 duration-300">
+      <div className="flex flex-col lg:flex-row gap-8">
         
-        {/* Left Col: Tenant Details */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="font-bold text-gray-900 text-lg">Tenant Details</h2>
+        {/* LEFT: Tenant & Meter Info */}
+        <div className="lg:w-1/3 space-y-6">
+          <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Details</h3>
               <button 
-                onClick={() => setIsEditingTenant(!isEditingTenant)}
-                className="text-blue-600 text-sm hover:underline"
+                onClick={() => isEditing ? handleSaveTenant() : setIsEditing(true)}
+                className={`text-sm font-black px-4 py-2 rounded-xl transition-all ${isEditing ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
-                {isEditingTenant ? 'Cancel' : 'Edit'}
+                {isEditing ? 'SAVE' : 'EDIT'}
               </button>
             </div>
 
-            {isEditingTenant ? (
-              <form onSubmit={handleSaveTenant} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Tenant Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                      placeholder="Enter name"
-                      value={tenantForm.name}
-                      onChange={(e) => setTenantForm({...tenantForm, name: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Flat / Plot No</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                    <input
-                      type="text"
-                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                      placeholder="e.g. 102 or Plot 45"
-                      value={tenantForm.flatOrPlotNo}
-                      onChange={(e) => setTenantForm({...tenantForm, flatOrPlotNo: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Phone (India)</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                    <input
-                      type="tel"
-                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                      placeholder="9876543210"
-                      value={tenantForm.phone}
-                      onChange={(e) => setTenantForm({...tenantForm, phone: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-2"
-                >
-                  <Save className="h-4 w-4" /> Save Details
-                </button>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                 <div className="flex items-start gap-3">
-                   <div className="bg-gray-100 p-2 rounded-full"><User className="h-5 w-5 text-gray-600" /></div>
-                   <div>
-                     <p className="text-xs text-gray-500">Name</p>
-                     <p className="font-medium text-gray-900">{ukscItem.tenant.name || 'Not set'}</p>
-                   </div>
-                 </div>
-                 <div className="flex items-start gap-3">
-                   <div className="bg-gray-100 p-2 rounded-full"><MapPin className="h-5 w-5 text-gray-600" /></div>
-                   <div>
-                     <p className="text-xs text-gray-500">Address</p>
-                     <p className="font-medium text-gray-900">{ukscItem.tenant.flatOrPlotNo || 'Not set'}</p>
-                   </div>
-                 </div>
-                 <div className="flex items-start gap-3">
-                   <div className="bg-gray-100 p-2 rounded-full"><Phone className="h-5 w-5 text-gray-600" /></div>
-                   <div>
-                     <p className="text-xs text-gray-500">Phone</p>
-                     <p className="font-medium text-gray-900">{ukscItem.tenant.phone || 'Not set'}</p>
-                   </div>
-                 </div>
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Service Name</label>
+                <h2 className="text-2xl font-black text-blue-600 leading-tight">{item.label}</h2>
+                <p className="text-slate-400 font-mono text-xs mt-1">UKSC: {item.ukscNumber}</p>
               </div>
-            )}
+
+              <div className="pt-6 border-t space-y-5">
+                <div className="flex gap-4 items-start">
+                  <div className="bg-slate-50 p-3 rounded-2xl"><User className="h-5 w-5 text-slate-400" /></div>
+                  <div className="flex-grow">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tenant</p>
+                    {isEditing ? (
+                      <input 
+                        className="w-full mt-1 font-bold outline-none border-b-2 border-blue-600 py-1"
+                        value={tenantForm.name}
+                        onChange={e => setTenantForm({...tenantForm, name: e.target.value})}
+                      />
+                    ) : (
+                      <p className="font-bold text-slate-800 text-lg leading-tight">{tenantForm.name || 'Not Assigned'}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-4 items-start">
+                  <div className="bg-slate-50 p-3 rounded-2xl"><MapPin className="h-5 w-5 text-slate-400" /></div>
+                  <div className="flex-grow">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Address</p>
+                    {isEditing ? (
+                      <input 
+                        className="w-full mt-1 font-bold outline-none border-b-2 border-blue-600 py-1"
+                        placeholder="Flat/Plot No"
+                        value={tenantForm.address}
+                        onChange={e => setTenantForm({...tenantForm, address: e.target.value})}
+                      />
+                    ) : (
+                      <p className="font-bold text-slate-800 text-lg leading-tight">{tenantForm.address || 'N/A'}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-4 items-start">
+                  <div className="bg-slate-50 p-3 rounded-2xl"><Phone className="h-5 w-5 text-slate-400" /></div>
+                  <div className="flex-grow">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">WhatsApp</p>
+                    {isEditing ? (
+                      <input 
+                        className="w-full mt-1 font-bold outline-none border-b-2 border-blue-600 py-1"
+                        placeholder="Phone number"
+                        value={tenantForm.phone}
+                        onChange={e => setTenantForm({...tenantForm, phone: e.target.value})}
+                      />
+                    ) : (
+                      <p className="font-bold text-slate-800 text-lg leading-tight">{tenantForm.phone || 'N/A'}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <a 
+            href={`https://tgsouthernpower.org/billinginfo?ukscno=${item.ukscNumber}`}
+            target="_blank"
+            className="flex items-center justify-between p-6 bg-slate-900 text-white rounded-[2rem] hover:bg-black transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <Zap className="h-5 w-5 text-yellow-400" />
+              <span className="font-bold text-sm">Official Portal</span>
+            </div>
+            <ExternalLink className="h-4 w-4 opacity-50 group-hover:opacity-100" />
+          </a>
         </div>
 
-        {/* Right Col: Bill Details */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-             <div className="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-               <div>
-                 <h2 className="text-xl font-bold text-gray-900">{ukscItem.label}</h2>
-                 <p className="text-gray-500 font-mono text-sm">UKSC: {ukscItem.ukscNumber}</p>
-               </div>
-               <button 
-                  onClick={() => loadBill(ukscItem.ukscNumber)}
-                  disabled={loading}
-                  className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50"
-                  title="Refresh Bill"
-               >
-                 <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-               </button>
-             </div>
+        {/* RIGHT: Bill Processing */}
+        <div className="lg:w-2/3 space-y-6">
+          <div className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 flex flex-col h-full min-h-[500px]">
+            <div className="p-8 border-b bg-slate-50 flex justify-between items-center">
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Billing Status</h3>
+              <button 
+                onClick={handleFetch}
+                disabled={loading}
+                className="bg-white p-3 rounded-2xl border shadow-sm hover:shadow-md transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`h-5 w-5 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
 
-             <div className="p-6">
-                {error && (
-                  <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">
-                    {error}
+            <div className="p-8 flex-grow flex flex-col items-center justify-center text-center">
+              {!bill && !loading ? (
+                <div className="space-y-6 max-w-sm">
+                  <div className="bg-blue-50 w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto mb-4">
+                    <RefreshCw className="h-10 w-10 text-blue-300" />
                   </div>
-                )}
-                
-                {loading ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
-                     <p className="text-gray-500">Fetching latest bill details from TSSPDCL...</p>
+                  <h4 className="text-2xl font-black text-slate-800">No bill data loaded</h4>
+                  <p className="text-slate-400 text-sm">Click the refresh button to fetch the latest billing information for this meter.</p>
+                  <button onClick={handleFetch} className="w-full bg-blue-600 text-white font-black py-4 rounded-[1.5rem] shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all">
+                    Fetch Billing Data
+                  </button>
+                </div>
+              ) : loading ? (
+                <div className="space-y-4">
+                  <div className="relative w-20 h-20 mx-auto">
+                    <div className="absolute inset-0 border-4 border-blue-50 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-t-blue-600 rounded-full animate-spin" />
                   </div>
-                ) : bill ? (
-                   <div className="space-y-6">
-                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                       <div className="bg-blue-50 p-4 rounded-xl">
-                         <p className="text-blue-600 text-xs font-semibold uppercase mb-1">Total Amount</p>
-                         <p className="text-2xl font-bold text-gray-900">₹{bill.amount}</p>
-                       </div>
-                       <div className="bg-gray-50 p-4 rounded-xl">
-                         <p className="text-gray-500 text-xs font-semibold uppercase mb-1">Units Consumed</p>
-                         <p className="text-2xl font-bold text-gray-900">{bill.unitsConsumed}</p>
-                       </div>
-                       <div className="bg-gray-50 p-4 rounded-xl">
-                         <p className="text-gray-500 text-xs font-semibold uppercase mb-1">Bill Date</p>
-                         <p className="text-lg font-bold text-gray-900">{bill.billingDate}</p>
-                       </div>
-                       <div className={`p-4 rounded-xl ${bill.status === 'Paid' ? 'bg-green-50' : 'bg-orange-50'}`}>
-                         <p className={`text-xs font-semibold uppercase mb-1 ${bill.status === 'Paid' ? 'text-green-600' : 'text-orange-600'}`}>Status</p>
-                         <p className={`text-lg font-bold ${bill.status === 'Paid' ? 'text-green-700' : 'text-orange-700'}`}>{bill.status}</p>
-                       </div>
-                     </div>
-                     
-                     <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-gray-100">
-                        <button
-                          onClick={handleDownloadPDF}
-                          className="flex-1 flex items-center justify-center gap-2 bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-xl transition-all shadow-lg shadow-gray-200"
-                        >
-                          <Download className="h-5 w-5" />
-                          <span>Download PDF</span>
-                        </button>
-                        <button
-                          onClick={handleWhatsAppShare}
-                          className="flex-1 flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white px-6 py-3 rounded-xl transition-all shadow-lg shadow-green-100"
-                        >
-                          <Share2 className="h-5 w-5" />
-                          <span>Share on WhatsApp</span>
-                        </button>
-                     </div>
-                     
-                     <p className="text-center text-xs text-gray-400 mt-2">
-                       * To share the PDF on WhatsApp, please download it first, then attach it to the message.
-                     </p>
-                   </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-400">
-                    <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                    <p>No bill details available. Click refresh to fetch.</p>
+                  <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Querying TSSPDCL Servers...</p>
+                </div>
+              ) : bill ? (
+                <div className="w-full space-y-8 animate-in zoom-in duration-300">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-8 rounded-[2rem] text-left border border-slate-100">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Due</p>
+                      <div className="flex items-center gap-1 text-4xl font-black text-slate-900">
+                        <IndianRupee className="h-8 w-8 text-blue-600" />
+                        <span>{bill.amount}</span>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 p-8 rounded-[2rem] text-left border border-slate-100">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                      <div className={`text-2xl font-black ${bill.status === 'Paid' ? 'text-emerald-600' : 'text-orange-600'}`}>
+                        {bill.status.toUpperCase()}
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1">AS OF {bill.date}</p>
+                    </div>
                   </div>
-                )}
-             </div>
-          </div>
-          
-          <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg flex gap-3">
-             <div className="shrink-0 pt-1"><RefreshCw className="h-4 w-4 text-blue-600" /></div>
-             <p className="text-sm text-blue-800">
-               Data is fetched from <strong>tgsouthernpower.org</strong>. If fetching fails, ensure you have an active internet connection. 
-               <br/><span className="text-xs opacity-75">(Note: Due to browser security restrictions (CORS), actual fetching from the 3rd party site might be simulated in this demo).</span>
-             </p>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-4">
+                    <div className="text-left px-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Units</p>
+                      <p className="text-xl font-bold text-slate-800">{bill.units} kWh</p>
+                    </div>
+                    <div className="text-left px-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Due Date</p>
+                      <p className="text-xl font-bold text-slate-800">{bill.dueDate}</p>
+                    </div>
+                    <div className="text-left px-4 hidden md:block">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bill Date</p>
+                      <p className="text-xl font-bold text-slate-800">{bill.date}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-10">
+                    <button 
+                      onClick={() => generateBillPDF(item, bill)}
+                      className="flex items-center justify-center gap-3 bg-slate-900 text-white font-black py-5 rounded-[1.5rem] hover:bg-black transition-all shadow-xl shadow-slate-200"
+                    >
+                      <Download className="h-5 w-5" /> Download PDF
+                    </button>
+                    <button 
+                      onClick={shareToWhatsApp}
+                      className="flex items-center justify-center gap-3 bg-emerald-600 text-white font-black py-5 rounded-[1.5rem] hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100"
+                    >
+                      <Share2 className="h-5 w-5" /> Share WhatsApp
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 };
-
-export default UkscDetail;

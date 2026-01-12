@@ -1,46 +1,35 @@
-export interface TenantDetails {
+export interface Tenant {
   name: string;
-  flatOrPlotNo: string;
+  address: string;
   phone: string;
 }
 
-export interface BillDetails {
-  ukscNo: string;
-  billingDate: string;
-  dueDate: string;
+export interface Bill {
   amount: number;
-  unitsConsumed: number;
-  status: 'Paid' | 'Pending' | 'Overdue';
-  fetchedAt: string;
+  units: number;
+  date: string;
+  dueDate: string;
+  status: 'Paid' | 'Unpaid';
 }
 
 export interface UkscItem {
   id: string;
   ukscNumber: string;
-  label: string; // User defined name (e.g., "Meter 1")
-  tenant: TenantDetails;
-  lastBill?: BillDetails;
+  label: string;
+  tenant: Tenant;
+  lastBill?: Bill;
 }
 
-export type ProfileType = 'home' | 'apartment';
+export type PropertyType = 'home' | 'apartment';
 
 export interface Profile {
   id: string;
   name: string;
-  type: ProfileType;
+  type: PropertyType;
   items: UkscItem[];
 }
 
-export interface AppState {
+export interface AppData {
   profiles: Profile[];
   apiKey: string;
-  addProfile: (name: string, type: ProfileType) => void;
-  deleteProfile: (id: string) => void;
-  addUkscToProfile: (profileId: string, ukscNumbers: string[]) => void;
-  updateUksc: (profileId: string, ukscId: string, updates: Partial<UkscItem>) => void;
-  removeUksc: (profileId: string, ukscId: string) => void;
-  updateTenantDetails: (profileId: string, ukscId: string, details: TenantDetails) => void;
-  setApiKey: (key: string) => void;
-  exportData: () => void;
-  importData: (file: File) => Promise<void>;
 }

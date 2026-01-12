@@ -1,65 +1,52 @@
 import React, { useState } from 'react';
-import { Zap, Home, LayoutGrid, Settings } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import SettingsModal from './SettingsModal';
+import { Zap, Settings, ArrowLeft } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { SettingsModal } from './SettingsModal';
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const navigate = useNavigate();
+export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
   const isHome = location.pathname === '/';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
-      <header className="bg-blue-600 text-white shadow-md sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div 
-            className="flex items-center space-x-2 cursor-pointer"
-            onClick={() => navigate('/')}
-          >
-            <Zap className="h-6 w-6 text-yellow-300" />
-            <span className="font-bold text-xl tracking-tight">PowerBill</span>
-          </div>
-          
-          <div className="flex items-center space-x-2">
+    <div className="min-h-screen flex flex-col">
+      <header className="bg-white border-b sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             {!isHome && (
-              <button 
-                onClick={() => navigate('/')}
-                className="p-2 hover:bg-blue-700 rounded-full transition-colors"
-                aria-label="Go Home"
-                title="Dashboard"
-              >
-                <LayoutGrid className="h-5 w-5" />
+              <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-full text-slate-600">
+                <ArrowLeft className="h-5 w-5" />
               </button>
             )}
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-2 hover:bg-blue-700 rounded-full transition-colors"
-              aria-label="Settings"
-              title="Settings & Data"
-            >
-              <Settings className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+              <div className="bg-blue-600 p-1.5 rounded-lg">
+                <Zap className="h-5 w-5 text-white fill-white" />
+              </div>
+              <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                PowerBill <span className="text-slate-400 font-light">Pro</span>
+              </span>
+            </div>
           </div>
+
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
+          >
+            <Settings className="h-5 w-5" />
+          </button>
         </div>
       </header>
-      
-      <main className="flex-grow max-w-5xl mx-auto w-full px-4 py-6">
+
+      <main className="flex-grow max-w-6xl mx-auto w-full p-4">
         {children}
       </main>
 
-      <footer className="bg-white border-t py-6 text-center text-gray-500 text-sm">
-        <p>&copy; {new Date().getFullYear()} PowerBill Manager. Helps you manage utility bills effortlessly.</p>
+      <footer className="py-8 text-center text-slate-400 text-xs border-t bg-white/50">
+        <p>© 2024 PowerBill Manager Pro • Secure Local Storage Only</p>
       </footer>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 };
-
-export default Layout;

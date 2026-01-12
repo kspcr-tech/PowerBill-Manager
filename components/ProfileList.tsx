@@ -1,152 +1,134 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/context';
-import { Plus, Home, Building2, Trash2, ArrowRight } from 'lucide-react';
-import { ProfileType } from '../types';
+import { Home, Building2, Plus, Trash2, ChevronRight } from 'lucide-react';
+import { PropertyType } from '../types';
 
-const ProfileList: React.FC = () => {
-  const { profiles, addProfile, deleteProfile } = useAppStore();
+export const ProfileList: React.FC = () => {
+  const { data, addProfile, deleteProfile } = useAppStore();
   const navigate = useNavigate();
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newProfileName, setNewProfileName] = useState('');
-  const [newProfileType, setNewProfileType] = useState<ProfileType>('home');
+  const [isAdding, setIsAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [type, setType] = useState<PropertyType>('home');
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newProfileName.trim()) {
-      addProfile(newProfileName, newProfileType);
-      setNewProfileName('');
-      setIsModalOpen(false);
+    if (name.trim()) {
+      addProfile(name, type);
+      setName('');
+      setIsAdding(false);
     }
   };
 
   return (
-    <div>
+    <div className="max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">My Properties</h1>
-          <p className="text-gray-500">Manage your homes and apartments</p>
+          <h1 className="text-3xl font-extrabold text-slate-900">Properties</h1>
+          <p className="text-slate-500">Manage your meters across different sites.</p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-sm transition-all active:scale-95"
+        <button 
+          onClick={() => setIsAdding(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-blue-200 transition-all flex items-center gap-2 font-semibold"
         >
-          <Plus className="h-5 w-5" />
-          <span className="hidden sm:inline">Add Property</span>
+          <Plus className="h-5 w-5" /> New Site
         </button>
       </div>
 
-      {profiles.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
-          <Home className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">No properties yet</h3>
-          <p className="text-gray-500 mb-6">Create a profile to start tracking bills.</p>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="text-blue-600 font-medium hover:underline"
-          >
-            Create your first property
-          </button>
+      {data.profiles.length === 0 ? (
+        <div className="bg-white border-2 border-dashed rounded-3xl p-16 text-center">
+          <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Home className="h-10 w-10 text-slate-300" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">No properties yet</h2>
+          <p className="text-slate-500 mb-8 max-w-sm mx-auto">Start by adding your home or apartment complexes to organize your meters.</p>
+          <button onClick={() => setIsAdding(true)} className="text-blue-600 font-bold hover:underline">Add your first property &rarr;</button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {profiles.map((profile) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {data.profiles.map(profile => (
             <div 
               key={profile.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col"
+              onClick={() => navigate(`/profile/${profile.id}`)}
+              className="bg-white rounded-3xl p-6 shadow-sm border hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer group flex flex-col h-full"
             >
-              <div 
-                className="p-6 cursor-pointer flex-grow"
-                onClick={() => navigate(`/profile/${profile.id}`)}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`p-3 rounded-lg ${profile.type === 'home' ? 'bg-green-100 text-green-600' : 'bg-purple-100 text-purple-600'}`}>
-                    {profile.type === 'home' ? <Home className="h-6 w-6" /> : <Building2 className="h-6 w-6" />}
-                  </div>
-                  <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
-                    {profile.type}
-                  </span>
+              <div className="flex justify-between items-start mb-6">
+                <div className={`p-4 rounded-2xl ${profile.type === 'home' ? 'bg-emerald-50 text-emerald-600' : 'bg-purple-50 text-purple-600'}`}>
+                  {profile.type === 'home' ? <Home className="h-7 w-7" /> : <Building2 className="h-7 w-7" />}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">{profile.name}</h3>
-                <p className="text-gray-500 text-sm">{profile.items.length} UKSC Numbers</p>
-              </div>
-              
-              <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 flex justify-between items-center">
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    if(confirm('Are you sure you want to delete this profile?')) deleteProfile(profile.id);
+                    if(confirm("Delete this site and all its meters?")) deleteProfile(profile.id);
                   }}
-                  className="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition-colors"
+                  className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-5 w-5" />
                 </button>
-                <button 
-                   onClick={() => navigate(`/profile/${profile.id}`)}
-                   className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-                >
-                  View Details <ArrowRight className="h-4 w-4 ml-1" />
-                </button>
+              </div>
+              <h3 className="text-2xl font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors mb-1">{profile.name}</h3>
+              <p className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-6">{profile.type}</p>
+              
+              <div className="mt-auto pt-6 border-t flex justify-between items-center">
+                <span className="text-slate-600 font-bold text-sm bg-slate-100 px-3 py-1 rounded-full">
+                  {profile.items.length} {profile.items.length === 1 ? 'Meter' : 'Meters'}
+                </span>
+                <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-blue-600 transition-all" />
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
-            <h2 className="text-xl font-bold mb-4">Add New Property</h2>
-            <form onSubmit={handleCreate}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Property Name</label>
-                <input
-                  type="text"
+      {isAdding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-8 animate-in slide-in-from-bottom-8">
+            <h2 className="text-2xl font-bold mb-6">Add Property</h2>
+            <form onSubmit={handleAdd} className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Property Name</label>
+                <input 
+                  autoFocus
+                  className="w-full px-5 py-3 border-2 border-slate-100 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                  placeholder="e.g. My Villa, Skyline Apartment"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
                   required
-                  placeholder="e.g. Riverside Apartment"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  value={newProfileName}
-                  onChange={(e) => setNewProfileName(e.target.value)}
                 />
               </div>
               
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Property Type</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNewProfileType('home')}
-                    className={`flex items-center justify-center p-3 border rounded-lg transition-all ${newProfileType === 'home' ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <Home className="h-5 w-5 mr-2" />
-                    Home
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewProfileType('apartment')}
-                    className={`flex items-center justify-center p-3 border rounded-lg transition-all ${newProfileType === 'apartment' ? 'border-blue-600 bg-blue-50 text-blue-700 ring-1 ring-blue-600' : 'border-gray-200 hover:border-gray-300'}`}
-                  >
-                    <Building2 className="h-5 w-5 mr-2" />
-                    Apartment
-                  </button>
-                </div>
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  type="button"
+                  onClick={() => setType('home')}
+                  className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${type === 'home' ? 'border-blue-600 bg-blue-50 text-blue-600 shadow-inner' : 'border-slate-100 text-slate-400'}`}
+                >
+                  <Home className="h-6 w-6" />
+                  <span className="text-sm font-bold uppercase">Home</span>
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setType('apartment')}
+                  className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${type === 'apartment' ? 'border-blue-600 bg-blue-50 text-blue-600 shadow-inner' : 'border-slate-100 text-slate-400'}`}
+                >
+                  <Building2 className="h-6 w-6" />
+                  <span className="text-sm font-bold uppercase">Apartment</span>
+                </button>
               </div>
 
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAdding(false)} 
+                  className="flex-1 px-6 py-3 font-bold text-slate-500 hover:bg-slate-100 rounded-2xl transition-colors"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                <button 
+                  type="submit" 
+                  className="flex-1 px-6 py-3 bg-blue-600 text-white font-bold rounded-2xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-colors"
                 >
-                  Create Property
+                  Create
                 </button>
               </div>
             </form>
@@ -156,5 +138,3 @@ const ProfileList: React.FC = () => {
     </div>
   );
 };
-
-export default ProfileList;

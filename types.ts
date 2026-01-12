@@ -33,10 +33,14 @@ export interface Profile {
 
 export interface AppState {
   profiles: Profile[];
+  apiKey: string;
   addProfile: (name: string, type: ProfileType) => void;
   deleteProfile: (id: string) => void;
   addUkscToProfile: (profileId: string, ukscNumbers: string[]) => void;
   updateUksc: (profileId: string, ukscId: string, updates: Partial<UkscItem>) => void;
   removeUksc: (profileId: string, ukscId: string) => void;
   updateTenantDetails: (profileId: string, ukscId: string, details: TenantDetails) => void;
+  setApiKey: (key: string) => void;
+  exportData: () => void;
+  importData: (file: File) => Promise<void>;
 }

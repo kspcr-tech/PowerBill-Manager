@@ -1,6 +1,7 @@
-import React from 'react';
-import { Zap, Home, LayoutGrid } from 'lucide-react';
+import React, { useState } from 'react';
+import { Zap, Home, LayoutGrid, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import SettingsModal from './SettingsModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const isHome = location.pathname === '/';
 
@@ -24,15 +26,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <span className="font-bold text-xl tracking-tight">PowerBill</span>
           </div>
           
-          {!isHome && (
-            <button 
-              onClick={() => navigate('/')}
+          <div className="flex items-center space-x-2">
+            {!isHome && (
+              <button 
+                onClick={() => navigate('/')}
+                className="p-2 hover:bg-blue-700 rounded-full transition-colors"
+                aria-label="Go Home"
+                title="Dashboard"
+              >
+                <LayoutGrid className="h-5 w-5" />
+              </button>
+            )}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
               className="p-2 hover:bg-blue-700 rounded-full transition-colors"
-              aria-label="Go Home"
+              aria-label="Settings"
+              title="Settings & Data"
             >
-              <LayoutGrid className="h-5 w-5" />
+              <Settings className="h-5 w-5" />
             </button>
-          )}
+          </div>
         </div>
       </header>
       
@@ -43,6 +56,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <footer className="bg-white border-t py-6 text-center text-gray-500 text-sm">
         <p>&copy; {new Date().getFullYear()} PowerBill Manager. Helps you manage utility bills effortlessly.</p>
       </footer>
+
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 };

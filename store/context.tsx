@@ -3,17 +3,39 @@ import { AppState, Profile, ProfileType, UkscItem, TenantDetails } from '../type
 
 const AppContext = createContext<AppState | undefined>(undefined);
 
-const STORAGE_KEY = 'powerbill_manager_data_v1';
+const STORAGE_KEY_PROFILES = 'powerbill_manager_data_v1';
+const STORAGE_KEY_API = 'powerbill_manager_api_key';
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Load Profiles
   const [profiles, setProfiles] = useState<Profile[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_PROFILES);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load profiles", e);
+      return [];
+    }
   });
 
+  // Load API Key
+  const [apiKey, setApiKeyState] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEY_API) || '';
+  });
+
+  // Persist Profiles
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+    localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(profiles));
   }, [profiles]);
+
+  // Persist API Key
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_API, apiKey);
+  }, [apiKey]);
+
+  const setApiKey = (key: string) => {
+    setApiKeyState(key);
+  };
 
   const addProfile = (name: string, type: ProfileType) => {
     const newProfile: Profile = {
@@ -76,16 +98,62 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updateUksc(profileId, ukscId, { tenant: details });
   };
 
+  const exportData = () => {
+    const data = {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      profiles,
+      apiKey,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `PowerBill_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = async (file: File): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          const data = JSON.parse(content);
+          
+          if (data.profiles && Array.isArray(data.profiles)) {
+            setProfiles(data.profiles);
+          }
+          if (data.apiKey && typeof data.apiKey === 'string') {
+            setApiKeyState(data.apiKey);
+          }
+          resolve();
+        } catch (error) {
+          reject(new Error("Invalid JSON file"));
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsText(file);
+    });
+  };
+
   return (
     <AppContext.Provider
       value={{
         profiles,
+        apiKey,
         addProfile,
         deleteProfile,
         addUkscToProfile,
         updateUksc,
         removeUksc,
         updateTenantDetails,
+        setApiKey,
+        exportData,
+        importData,
       }}
     >
       {children}

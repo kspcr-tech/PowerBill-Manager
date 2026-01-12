@@ -20,17 +20,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Load API Key
   const [apiKey, setApiKeyState] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEY_API) || '';
+    try {
+      return localStorage.getItem(STORAGE_KEY_API) || '';
+    } catch (e) {
+      return '';
+    }
   });
 
   // Persist Profiles
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(profiles));
+    try {
+      localStorage.setItem(STORAGE_KEY_PROFILES, JSON.stringify(profiles));
+    } catch (e) {
+      console.error("Failed to save profiles", e);
+    }
   }, [profiles]);
 
   // Persist API Key
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_API, apiKey);
+    try {
+      localStorage.setItem(STORAGE_KEY_API, apiKey);
+    } catch (e) {
+      console.error("Failed to save API key", e);
+    }
   }, [apiKey]);
 
   const setApiKey = (key: string) => {
@@ -127,8 +139,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (data.profiles && Array.isArray(data.profiles)) {
             setProfiles(data.profiles);
           }
-          if (data.apiKey && typeof data.apiKey === 'string') {
-            setApiKeyState(data.apiKey);
+          if (data.apiKey !== undefined) {
+             setApiKeyState(data.apiKey || '');
           }
           resolve();
         } catch (error) {

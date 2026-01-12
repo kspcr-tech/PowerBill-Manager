@@ -16,8 +16,8 @@
     "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.2.0",
     "jspdf": "https://esm.sh/jspdf@2.5.1",
     "@google/genai": "https://esm.sh/@google/genai@0.21.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>
@@ -27,6 +27,16 @@
       font-family: 'Plus Jakarta Sans', sans-serif; 
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+    }
+    #root:empty::before {
+      content: "Loading Application...";
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 0.875rem;
     }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

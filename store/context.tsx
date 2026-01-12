@@ -17,10 +17,23 @@ const AppContext = createContext<ContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'powerbill_manager_v2';
 
+// Fallback for environments without crypto.randomUUID
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [data, setData] = useState<AppData>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : { profiles: [], apiKey: '' };
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : { profiles: [], apiKey: '' };
+    } catch (e) {
+      console.error("Failed to parse storage", e);
+      return { profiles: [], apiKey: '' };
+    }
   });
 
   useEffect(() => {
@@ -31,7 +44,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addProfile = (name: string, type: PropertyType) => {
     const newProfile: Profile = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name,
       type,
       items: []
@@ -49,7 +62,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       profiles: prev.profiles.map(p => {
         if (p.id !== profileId) return p;
         const newItems: UkscItem[] = numbers.map(num => ({
-          id: crypto.randomUUID(),
+          id: generateId(),
           ukscNumber: num.trim(),
           label: `Meter ${num.trim().slice(-4)}`,
           tenant: { name: '', address: '', phone: '' }

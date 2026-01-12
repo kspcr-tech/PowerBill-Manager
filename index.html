@@ -29,7 +29,7 @@
       -moz-osx-font-smoothing: grayscale;
     }
     #root:empty::before {
-      content: "Loading Application...";
+      content: "Initializing Application...";
       display: flex;
       align-items: center;
       justify-content: center;
@@ -37,6 +37,7 @@
       color: #94a3b8;
       font-weight: 600;
       font-size: 0.875rem;
+      background: #F8FAFC;
     }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -46,5 +47,7 @@
 </head>
 <body class="bg-[#F8FAFC] text-slate-900 overflow-x-hidden">
   <div id="root"></div>
+  <!-- Explicitly loading the entry point -->
+  <script type="module" src="./index.tsx"></script>
 </body>
 </html>
